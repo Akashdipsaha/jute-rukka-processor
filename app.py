@@ -16,10 +16,10 @@ import fitz  # --- NEW IMPORT FOR PDFS ---
 # --- Use Streamlit Secrets ---
 # Best practice: Store your keys in Streamlit's secrets
 # Do not hardcode them in the script.
-MY_API_KEY = st.secrets.get("MY_API_KEY", "")
-MONGO_USER = st.secrets.get("MONGO_USER", "")
-MONGO_PASSWORD = st.secrets.get("MONGO_PASSWORD", "")
-MONGO_CLUSTER_URL = st.secrets.get("MONGO_CLUSTER_URL", "")
+MY_API_KEY = "AIzaSyCWeRY8cV44-V9cLrhj0oBi9KhKym7YvKk" 
+MONGO_USER = "Akashdip_Saha"
+MONGO_PASSWORD = "STIL@12345"
+MONGO_CLUSTER_URL = "cluster0.2zgbica.mongodb.net/"
 
 
 # --- Page Setup ---
