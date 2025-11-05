@@ -5,17 +5,15 @@ from PIL import Image
 import json
 import re
 import io
-from fpdf import FPDF # New import for PDF creation
-import pymongo # New import for MongoDB
+from fpdf import FPDF  # New import for PDF creation
+import pymongo  # New import for MongoDB
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from urllib.parse import quote_plus # New import to fix connection string error
+from urllib.parse import quote_plus  # New import to fix connection string error
 import fitz  # --- NEW IMPORT FOR PDFS ---
 
 
 # --- Use Streamlit Secrets ---
-# Best practice: Store your keys in Streamlit's secrets
-# Do not hardcode them in the script.
 MY_API_KEY = "AIzaSyCWeRY8cV44-V9cLrhj0oBi9KhKym7YvKk" 
 MONGO_USER = "Akashdip_Saha"
 MONGO_PASSWORD = "STIL@12345"
@@ -25,16 +23,175 @@ MONGO_CLUSTER_URL = "cluster0.2zgbica.mongodb.net/"
 # --- Page Setup ---
 st.set_page_config(
     page_title="🤖 Raw Jute Rukka Processor",
-    page_icon="⚙️",
+    page_icon="📜",
     layout="wide"
 )
+
+# --- [NEW] Corporate CSS with New Colors ---
+# Buttons: #A94A4A, Header BG: #FFA725
+st.markdown("""
+<style>
+
+/* --- 1. Define Color Palette & Base Vars --- */
+:root {
+    /* Main Palette */
+    --color-primary: #A94A4A;       /* Deep Red for Buttons */
+    --color-header-bg: #FFA725;     /* Amber for Header BG */
+    --color-header-text: #FFFFFF;    /* White text on header */
+    --color-bg-main: #F4F6F8;     /* Light Gray BG */
+    --color-border: #D1D3D4;      /* Light Gray Border */
+    --color-bg-container: #FFFFFF; /* Pure White */
+    
+    /* Shades for BOLDER Gradients (Red) */
+    --color-primary-light: #c35a5a;   /* Lighter Red */
+    --color-primary-dark: #8f3b3b;    /* Darker Red */
+
+    /* Text */
+    --color-text-dark: #333333;
+    --color-text-light: #777777;
+
+    /* UI Elements */
+    --corporate-border-radius: 8px;
+    /* BOLDER Shadow */
+    --corporate-box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); 
+}
+
+/* --- 2. Global Styles --- */
+
+/* Main page background */
+[data-testid="stAppViewContainer"] > .main {
+    background: var(--color-bg-main);
+}
+
+/* Sidebar styling */
+[data-testid="stSidebar"] {
+    background-color: var(--color-bg-container);
+    border-right: 1px solid var(--color-border);
+}
+
+/* --- 3. Typography --- */
+
+/* Main Title: Use the new primary color */
+[data-testid="stAppViewContainer"] > .main .block-container h1 {
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: 2.75rem;
+    padding-top: 1rem;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Subtitle */
+[data-testid="stAppViewContainer"] > .main .block-container h1 + div p {
+     color: var(--color-text-light);
+     font-size: 1.1rem;
+     margin-bottom: 2rem;
+}
+
+/* Section Headers: Amber background */
+[data-testid="stAppViewContainer"] > .main .block-container h2 {
+    background-color: var(--color-header-bg);
+    color: var(--color-header-text);
+    padding: 1rem 1.5rem;
+    border-radius: var(--corporate-border-radius);
+    border-bottom: none; /* Remove old border */
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+/* --- 4. Container Styling (st.container(border=True)) --- */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: var(--color-bg-container);
+    border: 1px solid var(--color-border);
+    border-radius: var(--corporate-border-radius);
+    box-shadow: var(--corporate-box-shadow);
+    padding: 2rem;
+}
+
+/* --- 5. Button Styling (All buttons use --color-primary) --- */
+
+/* Primary Button (Deep Red) */
+[data-testid="stButton"] button[kind="primary"] {
+    border: none;
+    border-radius: var(--corporate-border-radius);
+    font-weight: 600;
+    color: white;
+    /* BOLDER top-to-bottom gradient */
+    background: linear-gradient(to bottom, var(--color-primary-light) 0%, var(--color-primary) 100%);
+    transition: all 0.2s ease-in-out;
+}
+[data-testid="stButton"] button[kind="primary"]:hover {
+    /* Flip gradient on hover */
+    background: linear-gradient(to top, var(--color-primary-light) 0%, var(--color-primary) 100%);
+    box-shadow: 0 6px 12px rgba(169, 74, 74, 0.4); /* Stronger shadow */
+}
+
+/* Secondary/Outline Button (Also Deep Red, but outline style) */
+[data-testid="stButton"] button:not([kind="primary"]) {
+    border: 1px solid var(--color-primary);
+    border-radius: var(--corporate-border-radius);
+    font-weight: 600;
+    color: var(--color-primary);
+    background: var(--color-bg-container);
+    transition: all 0.2s ease-in-out;
+}
+[data-testid="stButton"] button:not([kind="primary"]):hover {
+    color: white;
+    /* Fill with BOLDER gradient on hover */
+    background: linear-gradient(to bottom, var(--color-primary-light) 0%, var(--color-primary) 100%);
+    border-color: var(--color-primary-dark);
+    box-shadow: 0 6px 12px rgba(169, 74, 74, 0.4); /* Stronger shadow */
+}
+
+/* --- 6. Tab Styling (Upload / Camera) --- */
+[data-baseweb="tab-list"] {
+    background-color: transparent;
+    border-bottom: 3px solid var(--color-border); /* Thicker gray bottom border */
+}
+
+[data-baseweb="tab"] {
+    background-color: transparent;
+    color: var(--color-text-light); /* Inactive tabs are light gray */
+}
+[data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+    background-color: #f8f8f8; 
+    color: var(--color-text-dark);
+}
+[data-baseweb="tab"][aria-selected="true"] {
+    background-color: transparent;
+    color: var(--color-primary); /* Active tab is Deep Red */
+    font-weight: 600;
+    /* Thicker Underline for active tab */
+    box-shadow: inset 0 -4px 0 0 var(--color-primary); 
+}
+
+/* --- 7. File Uploader Styling --- */
+[data-testid="stFileUploader"] section[data-baseweb="file-uploader"] {
+    background: var(--color-bg-container);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--corporate-border-radius);
+}
+/* "Browse Files" button inside uploader */
+[data-testid="stFileUploader"] button {
+    background-color: var(--color-primary); /* Deep Red */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+[data-testid="stFileUploader"] button:hover {
+    background-color: var(--color-primary-dark);
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
+# --- [END] CSS ---
 
 
 if 'reset_counter' not in st.session_state:
     st.session_state.reset_counter = 0
 
 if 'camera_open' not in st.session_state:
-    st.session_state.camera_open = False 
+    st.session_state.camera_open = False
 
 if 'active_input' not in st.session_state:
     st.session_state.active_input = None
@@ -48,8 +205,9 @@ if 'result_list' not in st.session_state:
 if 'current_edit_index' not in st.session_state:
     st.session_state.current_edit_index = 0
     
-if 'individual_json_editor' not in st.session_state:
-    st.session_state.individual_json_editor = ""
+# [FIX] Added new state variable for camera fix
+if 'captured_image_data' not in st.session_state:
+    st.session_state.captured_image_data = None
 # --- END NEW STATE ---
 
 
@@ -72,24 +230,24 @@ def create_pdf(json_text):
         data_list = json.loads(json_text)
         
         if not isinstance(data_list, list):
-            data_list = [data_list] 
+            data_list = [data_list]
 
         # Loop through each item (which is now a full Rukka object)
         for i, data_dict in enumerate(data_list):
             if i > 0:
-                pdf.add_page() 
+                pdf.add_page()
             
             pdf.set_font("Arial", 'B', 16)
             pdf.cell(0, 10, f'Extracted Rukka Data (Image {i+1})', 0, 1, 'C')
-            pdf.ln(5) 
+            pdf.ln(5)
             
             try:
                 # Use json_normalize for complex, nested JSON
                 # This flattens the 'items' list for display
-                df = pd.json_normalize(data_dict, 'items', 
-                                    meta=['REPORT_TITTLE', 'UNIT', 'PO NO.', 'DATE', 'BROKER_NAME', 'BROKER_CODE', 'MUKAM', 'AREA', 'LORRY', 'REMARKS', 'MARKA', 'PAYMENT TERM'],
-                                    record_prefix='item.',
-                                    errors='ignore') # Ignore errors if 'items' is missing
+                df = pd.json_normalize(data_dict, 'items',
+                                       meta=['REPORT_TITTLE', 'UNIT', 'PO NO.', 'DATE', 'BROKER_NAME', 'BROKER_CODE', 'MUKAM', 'AREA', 'LORRY', 'REMARKS', 'MARKA', 'PAYMENT TERM'],
+                                       record_prefix='item.',
+                                       errors='ignore')  # Ignore errors if 'items' is missing
                 
                 # If normalization fails (e.g., no 'items'), flatten manually
                 if df.empty:
@@ -143,10 +301,10 @@ def create_text_report(json_text):
             
             try:
                 # Use json_normalize to flatten for display
-                df = pd.json_normalize(data_dict, 'items', 
-                                    meta=['REPORT_TITTLE', 'UNIT', 'PO NO.', 'DATE', 'BROKER_NAME', 'BROKER_CODE', 'MUKAM', 'AREA', 'LORRY', 'REMARKS', 'MARKA', 'PAYMENT TERM'],
-                                    record_prefix='item.',
-                                    errors='ignore')
+                df = pd.json_normalize(data_dict, 'items',
+                                       meta=['REPORT_TITTLE', 'UNIT', 'PO NO.', 'DATE', 'BROKER_NAME', 'BROKER_CODE', 'MUKAM', 'AREA', 'LORRY', 'REMARKS', 'MARKA', 'PAYMENT TERM'],
+                                       record_prefix='item.',
+                                       errors='ignore')
                 
                 if df.empty:
                     df = pd.json_normalize(data_dict)
@@ -160,9 +318,9 @@ def create_text_report(json_text):
                 if value is not None and str(value).strip() != "":
                     key_name = str(key).replace('_', ' ').title()
                     report_string += f"{key_name}:\n"
-                    report_string += f"  {str(value)}\n\n" 
+                    report_string += f"  {str(value)}\n\n"
             
-            report_string += "\n\n" # Add space between documents
+            report_string += "\n\n"  # Add space between documents
     
     except Exception as e:
         print(f"Could not convert JSON to table for TXT, falling back. Error: {e}")
@@ -172,7 +330,7 @@ def create_text_report(json_text):
 
 
 @st.cache_data(show_spinner=False)
-def get_json_from_image(image_bytes, api_key): 
+def get_json_from_image(image_bytes, api_key):
     """
     Sends the image and a specialized prompt to the Gemini API.
     This new prompt creates ONE JSON object per image, with a 
@@ -182,7 +340,7 @@ def get_json_from_image(image_bytes, api_key):
     try:
         img = Image.open(io.BytesIO(image_bytes))
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-pro') 
+        model = genai.GenerativeModel('gemini-2.5-pro')
         
         # --- *** NEW NORMALIZING PROMPT *** ---
         # This prompt is designed to create ONE JSON object per image,
@@ -209,9 +367,36 @@ This is your single source of truth for location names. You MUST use this list t
 * **BIHAR:** PURNEA, FORBESGANJ, KISHANGANJ, KISHANGANJ-A, KISHANGANJ-J, KISHANGANJ-B, GULABBAGH
 * **ASSAM:** TARABARI, BILASIPARA, GUWAHATI, GOSSAIGAON, KHARUPETIA, NOWGAON, DHUBRI, BHURAGAON, DHINGBAZAR
 * **SEMI NORTHERN:** SAMSI-J, MALDAH, SRIGHAR, GANGARAMPUR-L, TULSIHATA, HARISHCHPORE, RAIGANJ, KANKI, BULBULCHANDI, GAZOLE-L, KANKI-L, ISLAMPUR-SN, BALURGHAT-L
-* **NORTHERN:** DINHATA, MAYNAGURI, BAXIRHAT, HUSLUDANGA, BASIRHAT, BELAKOBA, DHUPGURI, HALDIBARI, BAMANHAT, TOOFANGANJ, MATHABHANGA, COOCHBEHAR, CHOWDHURIHAT, DEWANHAT, BAROBISHA
+* **NORTHERN:** DINHATA, MAYNAGURI, BAXIRHAT, HUSLUDANGA, BASIRHAT, BELAKOBA, DHUPGURI, HALDIBARI, BAMANHAT, TOOFANGANJ, MATHABHANGA, COOCHBEAR, CHOWDHURIHAT, DEWANHAT, BAROBISHA
 * **ODISHA:** BHADRAK
 * **BANGLADESH:** BANGLADESH
+
+
+
+**CRITICAL OUTPUT FORMAT:**
+Your output MUST be a **single JSON object** (`{}`).
+This object must contain all the header fields (PO NO., DATE, etc.) at the top level.
+It MUST also contain a nested JSON array called `items` (`[]`).
+You must place all individual item rows (e.g., rows with a GRADE like "TD5", "TD6") as objects inside this `items` list.
+
+**EXAMPLE:**
+If a single Rukka has PO: 123, BROKER: "ABC", and two items (TD5, TD6), your output MUST be a SINGLE JSON OBJECT like this:
+{
+  "PO NO.": 123,
+  "BROKER_NAME": "ABC",
+  "items": [
+    {
+      "GRADE": "TD5",
+      "BASIS": 9750,
+      ...
+    },
+    {
+      "GRADE": "TD6",
+      "BASIS": 9800,
+      ...
+    }
+  ]
+}
 
 Broker Code	Broker
 10000001	PANNA LAL JAIN & SONS (HUF)
@@ -2739,31 +2924,6 @@ Broker Code	Broker
 20000065	BROTHERS ENTERPRISE
 
 
-**CRITICAL OUTPUT FORMAT:**
-Your output MUST be a **single JSON object** (`{}`).
-This object must contain all the header fields (PO NO., DATE, etc.) at the top level.
-It MUST also contain a nested JSON array called `items` (`[]`).
-You must place all individual item rows (e.g., rows with a GRADE like "TD5", "TD6") as objects inside this `items` list.
-
-**EXAMPLE:**
-If a single Rukka has PO: 123, BROKER: "ABC", and two items (TD5, TD6), your output MUST be a SINGLE JSON OBJECT like this:
-{
-  "PO NO.": 123,
-  "BROKER_NAME": "ABC",
-  "items": [
-    {
-      "GRADE": "TD5",
-      "BASIS": 9750,
-      ...
-    },
-    {
-      "GRADE": "TD6",
-      "BASIS": 9800,
-      ...
-    }
-  ]
-}
-
 **EXTRACTION & FORMATTING RULES:**
 1.  **Analyze Image:** Scan the entire document for all fields.
 2.  **Field Mapping (Header):** Extract these fields at the top level of the JSON object.
@@ -2812,10 +2972,10 @@ If a single Rukka has PO: 123, BROKER: "ABC", and two items (TD5, TD6), your out
         
         if start_index != -1 and end_index != -1:
             clean_json_text = ai_response_text[start_index : end_index + 1]
-            json.loads(clean_json_text) # Validate that it's good JSON
+            json.loads(clean_json_text)  # Validate that it's good JSON
             return clean_json_text
         else:
-            return None # Return None to signal failure
+            return None  # Return None to signal failure
             
     except Exception as e:
         if "API Key not valid" in str(e):
@@ -2840,17 +3000,17 @@ def save_to_mongodb(username, password, cluster_url, json_text):
         client = MongoClient(connection_string, server_api=ServerApi('1'))
         client.admin.command('ping')
         
-        db = client["rukka_project"] 
-        collection = db["rukka_extractions"] 
+        db = client["rukka_project"]
+        collection = db["rukka_extractions"]
         
         # Data is a list of Rukka objects
         data_list = json.loads(json_text)
         
         if not isinstance(data_list, list):
-            data_list = [data_list] 
+            data_list = [data_list]
         
         if not data_list:
-             return False, "Cannot save. The extracted data is empty."
+            return False, "Cannot save. The extracted data is empty."
 
         result = collection.insert_many(data_list)
         
@@ -2861,7 +3021,7 @@ def save_to_mongodb(username, password, cluster_url, json_text):
         if "Authentication failed" in str(e):
             return False, "Failed to save data: Authentication failed. Please check your username and password."
         elif "could not be reached" in str(e):
-             return False, "Failed to save data: Cannot connect to MongoDB. Check cluster URL and network access."
+            return False, "Failed to save data: Cannot connect to MongoDB. Check cluster URL and network access."
         return False, f"Failed to save data: {e}"
 
 # --- Callbacks for State Management ---
@@ -2872,7 +3032,7 @@ def reset_process():
     """
     keys_to_clear = [
         "extraction_done", "result_list", "current_edit_index",
-        "active_input", "camera_open", "individual_json_editor"
+        "active_input", "camera_open", "captured_image_data" # [FIX] Added camera data
     ]
     for key in keys_to_clear:
         if key in st.session_state:
@@ -2881,56 +3041,43 @@ def reset_process():
     st.session_state.result_list = []
     st.session_state.extraction_done = False
     st.session_state.reset_counter += 1
-    st.session_state.camera_open = False 
+    st.session_state.camera_open = False
+    st.session_state.captured_image_data = None # [FIX] Explicitly clear
     st.rerun()
 
 def set_active_input_upload():
     st.session_state.active_input = "upload"
-    st.session_state.camera_open = False 
+    st.session_state.camera_open = False # Explicitly close camera if file is uploaded
+    st.session_state.captured_image_data = None # [FIX] Clear camera data
     st.session_state.extraction_done = False
     st.session_state.result_list = []
     st.session_state.current_edit_index = 0
 
+# [FIX] Updated camera callback
 def handle_camera_snap():
-    st.session_state.active_input = "camera"
-    st.session_state.extraction_done = False
-    st.session_state.result_list = []
-    st.session_state.current_edit_index = 0
+    camera_key = f"camera_input_key_{st.session_state.reset_counter}"
+    if st.session_state[camera_key] is not None:
+        # Save the captured image data to our persistent state variable
+        st.session_state.captured_image_data = st.session_state[camera_key] 
+        st.session_state.active_input = "camera"
+        st.session_state.extraction_done = False
+        st.session_state.result_list = []
+        st.session_state.current_edit_index = 0
+    else:
+        # This handles the case where the camera is closed or cleared
+        st.session_state.captured_image_data = None
+        st.session_state.active_input = None 
 
-# --- PAGINATION CALLBACKS (WITH BUG FIX) ---
+# --- [NEW] PAGINATION CALLBACKS ---
+# Simplified: No more JSON parsing, just change the index.
+# The widgets update the session state directly.
 def save_and_go_next():
-    try:
-        edited_str = st.session_state.individual_json_editor
-        new_dict = json.loads(edited_str)
-        
-        st.session_state.result_list[st.session_state.current_edit_index] = new_dict
+    if st.session_state.current_edit_index < len(st.session_state.result_list) - 1:
         st.session_state.current_edit_index += 1
-        
-        # Update text box for the *next* item
-        next_item_json = json.dumps(st.session_state.result_list[st.session_state.current_edit_index], indent=2)
-        st.session_state.individual_json_editor = next_item_json
-        
-    except json.JSONDecodeError:
-        st.error("Invalid JSON! Please fix the errors (e.g., missing comma, quote) before moving to the next item.")
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
 
 def save_and_go_prev():
-    try:
-        edited_str = st.session_state.individual_json_editor
-        new_dict = json.loads(edited_str)
-        
-        st.session_state.result_list[st.session_state.current_edit_index] = new_dict
+    if st.session_state.current_edit_index > 0:
         st.session_state.current_edit_index -= 1
-        
-        # Update text box for the *previous* item
-        prev_item_json = json.dumps(st.session_state.result_list[st.session_state.current_edit_index], indent=2)
-        st.session_state.individual_json_editor = prev_item_json
-        
-    except json.JSONDecodeError:
-        st.error("Invalid JSON! Please fix the errors (e.g., missing comma, quote) before moving to the next item.")
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
 
 # --- Main App UI ---
 
@@ -2944,7 +3091,7 @@ with st.sidebar:
             1.  **Provide Rukka Image(s):** Upload one or more files (JPG, PNG, PDF).
             2.  **Take a Picture:** (Local Only) Use the 'Take a Picture' tab to snap a photo.
             3.  **Extract Data:** Click the 'Extract Data' button. The AI will process all files.
-            4.  **Review & Edit:** The AI extracts **one JSON per image**. If you upload 3 images, you will have 3 Rukkas to review.
+            4.  **Review & Edit:** The AI extracts **one JSON per image**. Use the form in Step 2 to edit the fields for each Rukka.
             5.  **Download:** Download your *entire edited batch* as a single `.json`, `.txt`, `.csv`, or `.pdf` file.
             6.  **Save to DB:** Click 'Save All to MongoDB' to send all the extracted Rukkas to your database.
             7.  **Reset:** Click "Reset Process" to start over.
@@ -2956,11 +3103,11 @@ with st.sidebar:
 title_col, button_col = st.columns([4, 1])
 
 with title_col:
-    st.title("🤖 Raw Jute Rukka Processor")
-    st.write("Upload one or more images (JPG, PNG) or PDFs of a Rukka (Purchase Slip), and let AI extract the data for you.")
+    st.title("📜 Raw Jute Rukka Processor") 
+    st.write("Effortlessly extract data from your Rukka (Purchase Slip) documents.")
 
 with button_col:
-    st.write("") 
+    st.write("")
     if st.button("🔄 Reset Process", use_container_width=True, help="Click to clear all data and start over"):
         reset_process()
 
@@ -2981,22 +3128,23 @@ if not MY_API_KEY:
 else:
     # --- 3. Step 1: Provide an Image (with Tabs) ---
     with st.container(border=True):
-        st.header("Step 1: Provide Rukka Image(s)")
+        st.header("Step 1: Upload Rukka Document(s)")
         
         upload_tab, camera_tab = st.tabs(["📁 Upload File(s)", "📸 Take a Picture"])
         
-        image_data_list = [] 
-        images_to_process = [] 
-        image_names = [] 
+        image_data_list = []
+        images_to_process = []
+        image_names = []
 
         with upload_tab:
             upload_key = f"uploaded_file_key_{st.session_state.reset_counter}"
             uploaded_files = st.file_uploader(
-                "Choose one or more Rukka scans (PNG, JPG, JPEG, PDF)...", 
-                type=["jpg", "jpeg", "png", "pdf"], 
+                "Choose one or more Rukka scans (PNG, JPG, JPEG, PDF)...",
+                type=["jpg", "jpeg", "png", "pdf"],
                 key=upload_key,
-                on_change=set_active_input_upload, 
-                accept_multiple_files=True 
+                on_change=set_active_input_upload,
+                accept_multiple_files=True,
+                label_visibility="collapsed" 
             )
             if st.session_state.active_input == "upload" and uploaded_files:
                 image_data_list = uploaded_files
@@ -3004,24 +3152,24 @@ else:
         with camera_tab:
             camera_key = f"camera_input_key_{st.session_state.reset_counter}"
             
+            # The logic to show/hide the camera input widget
             if not st.session_state.camera_open:
                 if st.button("Open Camera", use_container_width=True):
                     st.session_state.camera_open = True
-                    st.rerun() 
+                    st.rerun()
             else:
                 captured_image = st.camera_input(
                     "Take a Picture of a Rukka",
                     key=camera_key,
-                    on_change=handle_camera_snap 
+                    on_change=handle_camera_snap # [FIX] Callback now saves data
                 )
                 if st.button("Close Camera", use_container_width=True):
                     st.session_state.camera_open = False
-                    st.rerun() 
+                    st.rerun()
             
-            if st.session_state.active_input == "camera":
-                captured_image_data = st.session_state.get(camera_key)
-                if captured_image_data:
-                    image_data_list = [captured_image_data] 
+            # [FIX] This logic now reads from the persistent state variable
+            if st.session_state.active_input == "camera" and st.session_state.captured_image_data is not None:
+                image_data_list = [st.session_state.captured_image_data]
         
         # --- BATCH FILE LIMIT CHECK ---
         if len(image_data_list) > 20:
@@ -3032,24 +3180,25 @@ else:
 
         if image_data_list:
             
-            col1, col2 = st.columns([2, 3]) 
+            col1, col2 = st.columns([2, 3])
             
             with col1:
-                if st.session_state.active_input == "camera":
-                    img = Image.open(image_data_list[0])
+                # [FIX] Also display the captured image from the persistent state
+                if st.session_state.active_input == "camera" and st.session_state.captured_image_data is not None:
+                    img = Image.open(st.session_state.captured_image_data)
                     st.image(img, caption="Your Rukka Image", width=300)
-                else:
+                elif st.session_state.active_input == "upload":
                     st.info(f"📁 {len(image_data_list)} Rukka file(s) selected.")
                     for f in image_data_list[:3]:
                         st.caption(f" - {f.name}")
                     if len(image_data_list) > 3:
-                        st.caption(f"   ...and {len(image_data_list) - 3} more.")
+                        st.caption(f"  ...and {len(image_data_list) - 3} more.")
 
             
             with col2:
-                if st.session_state.active_input == "camera":
+                if st.session_state.active_input == "camera" and st.session_state.captured_image_data is not None:
                     st.success("✅ Photo captured! Ready to extract.")
-                else:
+                elif st.session_state.active_input == "upload":
                     st.info(f"{len(image_data_list)} file(s) provided. Ready to extract?")
                 
                 if st.button(f"✨ Extract Data from {len(image_data_list)} file(s)", type="primary", use_container_width=True):
@@ -3062,14 +3211,15 @@ else:
                         st.session_state.result_list = []
                         st.session_state.current_edit_index = 0
                         
-                        images_to_process = [] 
-                        image_names = [] 
+                        images_to_process = []
+                        image_names = []
 
                         preprocess_bar = st.progress(0, text="Pre-processing files (converting PDFs)...")
                         
-                        if st.session_state.active_input == "camera":
+                        # [FIX] Read from persistent state for camera
+                        if st.session_state.active_input == "camera" and st.session_state.captured_image_data is not None:
                             try:
-                                uploaded_file = image_data_list[0]
+                                uploaded_file = st.session_state.captured_image_data
                                 uploaded_file.seek(0)
                                 img_bytes = uploaded_file.getvalue()
                                 images_to_process.append(img_bytes)
@@ -3093,20 +3243,20 @@ else:
                                         doc = fitz.open(stream=uploaded_file.getvalue(), filetype="pdf")
                                         for page_num, page in enumerate(doc):
                                             pix = page.get_pixmap(dpi=200)
-                                            img_bytes = pix.tobytes("png") 
-                                            images_to_process.append(img_bytes) 
+                                            img_bytes = pix.tobytes("png")
+                                            images_to_process.append(img_bytes)
                                             image_names.append(f"{file_name} (Page {page_num + 1})")
                                         doc.close()
                                     except Exception as e:
                                         st.warning(f"Could not read PDF {file_name}. Skipping. Error: {e}")
                                 
-                                else: # It's a JPG, PNG, etc.
-                                    uploaded_file.seek(0) 
-                                    img_bytes = uploaded_file.getvalue() 
-                                    images_to_process.append(img_bytes) 
+                                else:  # It's a JPG, PNG, etc.
+                                    uploaded_file.seek(0)
+                                    img_bytes = uploaded_file.getvalue()
+                                    images_to_process.append(img_bytes)
                                     image_names.append(file_name)
                                 
-                        preprocess_bar.empty() 
+                        preprocess_bar.empty()
 
 
                         # --- MAIN BATCH PROCESSING LOOP ---
@@ -3136,21 +3286,17 @@ else:
                                 else:
                                     st.warning(f"File {file_name} processing failed. AI returned no data.")
                             
-                            my_bar.empty() 
+                            my_bar.empty()
                         
                         if all_results:
                             st.session_state.result_list = all_results
                             st.session_state.current_edit_index = 0
                             st.session_state.extraction_done = True
                             
-                            first_item_json = json.dumps(st.session_state.result_list[0], indent=2)
-                            st.session_state.individual_json_editor = first_item_json
-                            
                             st.success(f"Extraction Complete! {len(all_results)} Rukkas processed from {total_images_to_process} image(s). See results in Step 2.")
                         else:
                             st.error("Extraction failed. No files could be processed.")
 
-    st.divider()
 
     # --- 4. Step 2 & 3: Review, Edit, & Download ---
     if st.session_state.extraction_done and st.session_state.result_list:
@@ -3162,22 +3308,66 @@ else:
             total_items = len(st.session_state.result_list)
             current_index = st.session_state.current_edit_index
             
-            st.write(f"You are editing **Rukka {current_index + 1} of {total_items}**. (Edits are saved when you click 'Next' or 'Previous'.)")
+            st.write(f"You are editing **Rukka {current_index + 1} of {total_items}**.")
             
-            edited_json_text = st.text_area(
-                "Editable Rukka JSON", 
-                key="individual_json_editor", 
-                height=400
-            )
+            # Get the dictionary for the current rukka
+            # Changes made to widgets will directly modify this dict
+            current_rukka = st.session_state.result_list[current_index]
 
+            # --- [NEW] Form-based Editor ---
+            st.subheader("Rukka Header")
+            
+            # Define all possible header fields
+            header_fields_col1 = ['REPORT_TITTLE', 'PO NO.', 'DATE', 'BROKER_NAME', 'MUKAM', 'AREA', 'MARKA']
+            header_fields_col2 = ['UNIT', 'BROKER_CODE', 'LORRY', 'REMARKS', 'PAYMENT TERM']
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                for field in header_fields_col1:
+                    # Use st.text_input, which writes changes back to the dict directly
+                    # Ensure .get() provides a default empty string if key is missing
+                    # Use a unique key to prevent widget state collisions
+                    current_rukka[field] = st.text_input(
+                        field, 
+                        value=current_rukka.get(field, ''),
+                        key=f"{field}_{current_index}"
+                    )
+            
+            with col2:
+                for field in header_fields_col2:
+                    current_rukka[field] = st.text_input(
+                        field, 
+                        value=current_rukka.get(field, ''),
+                        key=f"{field}_{current_index}" 
+                    )
+            
+            st.divider()
+            
+            st.subheader("Rukka Items")
+            # Ensure 'items' key exists and is a list
+            if 'items' not in current_rukka or not isinstance(current_rukka.get('items'), list):
+                current_rukka['items'] = []
+            
+            # Use st.data_editor to edit the list of item dictionaries
+            current_rukka['items'] = st.data_editor(
+                current_rukka['items'],
+                num_rows="dynamic",
+                use_container_width=True,
+                key=f"data_editor_{current_index}" # Unique key
+            )
+            # --- [END] Form-based Editor ---
+
+            # Pagination buttons
             col1, col2, col3 = st.columns([1, 2, 1])
             
             with col1:
                 st.button(
-                    "⬅️ Previous", 
-                    on_click=save_and_go_prev, 
+                    "⬅️ Previous",
+                    on_click=save_and_go_prev,
                     use_container_width=True,
-                    disabled=(current_index == 0) 
+                    disabled=(current_index == 0),
+                    type="primary"
                 )
             
             with col2:
@@ -3185,126 +3375,123 @@ else:
             
             with col3:
                 st.button(
-                    "Next ➡️", 
-                    on_click=save_and_go_next, 
+                    "Next ➡️",
+                    on_click=save_and_go_next,
                     use_container_width=True,
-                    disabled=(current_index >= total_items - 1) 
+                    disabled=(current_index >= total_items - 1),
+                    type="primary"
                 )
             # --- END OF PAGINATION UI ---
 
 
-            st.header("Step 3: Download & Export All Rukka Data")
+            # [FIX] Commented out the Download section as requested
             
-            try:
-                # Save the *last* edit from the text box
+            # st.header("Step 3: Download & Export All Rukka Data")
+            
+            # [FIX] Simplified this section.
+            # Removed the `try/except` and `is_valid_json`
+            # as it will be handled inside the save button instead.
+            
+            # if is_valid_json:
+                # st.subheader("Download Full Batch Report")
+                # col1, col2, col3, col4 = st.columns(4)
+                
+                # col1.download_button(
+                #     label="⬇️ Download as .json",
+                #     data=full_edited_json_text,
+                #     file_name="rukka_data_batch.json",
+                #     mime="application/json",
+                #     use_container_width=True
+                # )
+                
+                # with col2:
+                #     try:
+                #         text_report_data = create_text_report(full_edited_json_text)
+                #         st.download_button(
+                #             label="⬇️ Download as .txt",
+                #             data=text_report_data,
+                #             file_name="rukka_data_batch.txt",
+                #             mime="text/plain",
+                #             use_container_width=True
+                #         )
+                #     except Exception as e:
+                #         st.error("Could not create TXT.")
+                #         print(f"TXT Creation Error: {e}")
+                
+                # with col3:
+                #     try:
+                #         # Data is nested, so we must use json_normalize
+                #         data_dict = json.loads(full_edited_json_text)
+                #         df = pd.json_normalize(data_dict, 'items',
+                #                                meta=['REPORT_TITTLE', 'UNIT', 'PO NO.', 'DATE', 'BROKER_NAME', 'BROKER_CODE', 'MUKAM', 'AREA', 'LORRY', 'REMARKS', 'MARKA', 'PAYMENT TERM'],
+                #                                record_prefix='item.',
+                #                                errors='ignore')
+                #         csv_string = df.to_csv(index=False).encode('utf-8')
+                
+                #         st.download_button(
+                #             label="⬇️ Download as .csv",
+                #             data=csv_string,
+                #             file_name="rukka_data_batch.csv",
+                #             mime="text/csv",
+                #             use_container_width=True
+                #         )
+                #     except Exception as e:
+                #         st.error("Could not convert to CSV.")
+                #         print(f"CSV Conversion Error: {e}")
+
+                # with col4:
+                #     try:
+                #         pdf_data = create_pdf(full_edited_json_text)
+                #         st.download_button(
+                #             label="⬇️ Download as .pdf",
+                #             data=pdf_data,
+                #             file_name="rukka_data_batch.pdf",
+                #             mime="application/pdf",
+                #             use_container_width=True
+                #         )
+                #     except Exception as e:
+                #         st.error("Could not create PDF.")
+                #         print(f"PDF Creation Error: {e}")
+                
+                
+            # [FIX] Kept this divider
+            st.divider()
+
+            # [FIX] Kept the "Save to Database" section and moved logic inside
+            st.subheader("Save All Rukkas to Database")
+            
+            if st.button("💾 Save All to MongoDB", use_container_width=True, type="primary"):
                 try:
-                    last_edit_str = st.session_state.individual_json_editor
-                    last_edit_dict = json.loads(last_edit_str)
-                    st.session_state.result_list[current_index] = last_edit_dict
+                    # Try to serialize the data *now* when button is clicked
+                    full_edited_json_text = json.dumps(st.session_state.result_list, indent=2)
                 except Exception as e:
-                    print(f"Could not save last edit: {e}")
+                    st.error(f"Could not prepare data to save. Invalid data detected. Error: {e}")
+                    # Stop execution if data is invalid
+                    st.stop() 
                 
-                # The result_list is now the full list of Rukka objects
-                full_edited_json_text = json.dumps(st.session_state.result_list, indent=2)
-                is_valid_json = True
-            except Exception as e:
-                st.error(f"Could not prepare data for download. Error: {e}")
-                full_edited_json_text = "[]"
-                is_valid_json = False
-
-
-            if is_valid_json:
-                st.subheader("Download Full Batch Report")
-                col1, col2, col3, col4 = st.columns(4)
-                
-                col1.download_button(
-                    label="⬇️ Download as .json",
-                    data=full_edited_json_text, 
-                    file_name="rukka_data_batch.json",
-                    mime="application/json",
-                    use_container_width=True
-                )
-                
-                with col2:
-                    try:
-                        text_report_data = create_text_report(full_edited_json_text)
-                        st.download_button(
-                            label="⬇️ Download as .txt",
-                            data=text_report_data,
-                            file_name="rukka_data_batch.txt",
-                            mime="text/plain",
-                            use_container_width=True
-                        )
-                    except Exception as e:
-                        st.error("Could not create TXT.")
-                        print(f"TXT Creation Error: {e}")
-                
-                with col3:
-                    try:
-                        # Data is nested, so we must use json_normalize
-                        data_dict = json.loads(full_edited_json_text)
-                        df = pd.json_normalize(data_dict, 'items', 
-                                    meta=['REPORT_TITTLE', 'UNIT', 'PO NO.', 'DATE', 'BROKER_NAME', 'BROKER_CODE', 'MUKAM', 'AREA', 'LORRY', 'REMARKS', 'MARKA', 'PAYMENT TERM'],
-                                    record_prefix='item.',
-                                    errors='ignore') 
-                        csv_string = df.to_csv(index=False).encode('utf-8')
+                # If serialization succeeds, proceed with save logic
+                if not MONGO_USER or not MONGO_PASSWORD or not MONGO_CLUSTER_URL:
+                    st.error("🚨 ERROR: MongoDB Connection details not set! 🚨")
+                    st.warning("""
+                        **For Local Testing:**
+                        1. Open your `.streamlit/secrets.toml` file.
+                        2. Add these lines:
+                            `MONGO_USER = "YOUR_MONGO_USERNAME"`
+                            `MONGO_PASSWORD = "YOUR_MONGO_PASSWORD"`
+                            `MONGO_CLUSTER_URL = "YOUR_MONGO_CLUSTER_URL_HERE"` (e.g., "cluster0.xyz.mongodb.net")
                         
-                        st.download_button(
-                            label="⬇️ Download as .csv",
-                            data=csv_string,
-                            file_name="rukka_data_batch.csv",
-                            mime="text/csv",
-                            use_container_width=True
+                        **For Deployment:**
+                        Go to your Streamlit Community Cloud settings and add these three secrets.
+                    """)
+                else:
+                    with st.spinner("Connecting to database and saving batch..."):
+                        success, message = save_to_mongodb(
+                            MONGO_USER,
+                            MONGO_PASSWORD,
+                            MONGO_CLUSTER_URL,
+                            full_edited_json_text # Save the now-validated data
                         )
-                    except Exception as e:
-                        st.error("Could not convert to CSV.")
-                        print(f"CSV Conversion Error: {e}")
-
-                with col4:
-                    try:
-                        pdf_data = create_pdf(full_edited_json_text)
-                        st.download_button(
-                            label="⬇️ Download as .pdf",
-                            data=pdf_data,
-                            file_name="rukka_data_batch.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                    except Exception as e:
-                        st.error("Could not create PDF.")
-                        print(f"PDF Creation Error: {e}")
-                
-                st.divider()
-
-                st.subheader("Save All Rukkas to Database")
-                
-                if st.button("💾 Save All to MongoDB", use_container_width=True, type="primary"):
-                    if not MONGO_USER or not MONGO_PASSWORD or not MONGO_CLUSTER_URL:
-                        st.error("🚨 ERROR: MongoDB Connection details not set! 🚨")
-                        st.warning("""
-                            **For Local Testing:**
-                            1. Open your `.streamlit/secrets.toml` file.
-                            2. Add these lines:
-                                `MONGO_USER = "YOUR_MONGO_USERNAME"`
-                                `MONGO_PASSWORD = "YOUR_MONGO_PASSWORD"`
-                                `MONGO_CLUSTER_URL = "YOUR_MONGO_CLUSTER_URL_HERE"` (e.g., "cluster0.xyz.mongodb.net")
-                            
-                            **For Deployment:**
-                            Go to your Streamlit Community Cloud settings and add these three secrets.
-                        """)
-                    else:
-                        with st.spinner("Connecting to database and saving batch..."):
-                            success, message = save_to_mongodb(
-                                MONGO_USER, 
-                                MONGO_PASSWORD, 
-                                MONGO_CLUSTER_URL, 
-                                full_edited_json_text 
-                            )
-                            if success:
-                                st.success(message)
-                            else:
-                                st.error(message)
-
-            else:
-                st.info("The JSON text box is empty. Extract or edit data to enable downloads.")
-
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
