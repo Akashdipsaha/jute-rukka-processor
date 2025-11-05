@@ -351,6 +351,9 @@ You are a specialized Data Extraction Engine. Your SOLE purpose is to analyze im
 1st July to 31st October - New Crop
 After that Old Crop
 
+-L is treated as Loose bales
+TD5 is treated as the basis, and the Rs./amount is different for every TD..
+
 Delivery/Shipment Date Area Wise:
 SOUTH BENGAL - 10 Days
 SEMI NORTHERN - 15 Days
@@ -370,33 +373,6 @@ This is your single source of truth for location names. You MUST use this list t
 * **NORTHERN:** DINHATA, MAYNAGURI, BAXIRHAT, HUSLUDANGA, BASIRHAT, BELAKOBA, DHUPGURI, HALDIBARI, BAMANHAT, TOOFANGANJ, MATHABHANGA, COOCHBEAR, CHOWDHURIHAT, DEWANHAT, BAROBISHA
 * **ODISHA:** BHADRAK
 * **BANGLADESH:** BANGLADESH
-
-
-
-**CRITICAL OUTPUT FORMAT:**
-Your output MUST be a **single JSON object** (`{}`).
-This object must contain all the header fields (PO NO., DATE, etc.) at the top level.
-It MUST also contain a nested JSON array called `items` (`[]`).
-You must place all individual item rows (e.g., rows with a GRADE like "TD5", "TD6") as objects inside this `items` list.
-
-**EXAMPLE:**
-If a single Rukka has PO: 123, BROKER: "ABC", and two items (TD5, TD6), your output MUST be a SINGLE JSON OBJECT like this:
-{
-  "PO NO.": 123,
-  "BROKER_NAME": "ABC",
-  "items": [
-    {
-      "GRADE": "TD5",
-      "BASIS": 9750,
-      ...
-    },
-    {
-      "GRADE": "TD6",
-      "BASIS": 9800,
-      ...
-    }
-  ]
-}
 
 Broker Code	Broker
 10000001	PANNA LAL JAIN & SONS (HUF)
@@ -2924,6 +2900,31 @@ Broker Code	Broker
 20000065	BROTHERS ENTERPRISE
 
 
+**CRITICAL OUTPUT FORMAT:**
+Your output MUST be a **single JSON object** (`{}`).
+This object must contain all the header fields (PO NO., DATE, etc.) at the top level.
+It MUST also contain a nested JSON array called `items` (`[]`).
+You must place all individual item rows (e.g., rows with a GRADE like "TD5", "TD6") as objects inside this `items` list.
+
+**EXAMPLE:**
+If a single Rukka has PO: 123, BROKER: "ABC", and two items (TD5, TD6), your output MUST be a SINGLE JSON OBJECT like this:
+{
+  "PO NO.": 123,
+  "BROKER_NAME": "ABC",
+  "items": [
+    {
+      "GRADE": "TD5",
+      "...": 9750,
+      ...
+    },
+    {
+      "GRADE": "TD6",
+      "...": 9800,
+      ...
+    }
+  ]
+}
+
 **EXTRACTION & FORMATTING RULES:**
 1.  **Analyze Image:** Scan the entire document for all fields.
 2.  **Field Mapping (Header):** Extract these fields at the top level of the JSON object.
@@ -3000,8 +3001,8 @@ def save_to_mongodb(username, password, cluster_url, json_text):
         client = MongoClient(connection_string, server_api=ServerApi('1'))
         client.admin.command('ping')
         
-        db = client["rukka_project"]
-        collection = db["rukka_extractions"]
+        db = client["ocr_project"]
+        collection = db["extractions"]
         
         # Data is a list of Rukka objects
         data_list = json.loads(json_text)
@@ -3068,9 +3069,6 @@ def handle_camera_snap():
         st.session_state.captured_image_data = None
         st.session_state.active_input = None 
 
-# --- [NEW] PAGINATION CALLBACKS ---
-# Simplified: No more JSON parsing, just change the index.
-# The widgets update the session state directly.
 def save_and_go_next():
     if st.session_state.current_edit_index < len(st.session_state.result_list) - 1:
         st.session_state.current_edit_index += 1
@@ -3089,12 +3087,11 @@ with st.sidebar:
         st.info("This app uses AI to read your Rukka (Purchase Slip) and turn it into structured JSON data.")
         st.write("""
             1.  **Provide Rukka Image(s):** Upload one or more files (JPG, PNG, PDF).
-            2.  **Take a Picture:** (Local Only) Use the 'Take a Picture' tab to snap a photo.
+            2.  **Take a Picture:** (Local Only) Use the 'Take aPicture' tab to snap a photo.
             3.  **Extract Data:** Click the 'Extract Data' button. The AI will process all files.
             4.  **Review & Edit:** The AI extracts **one JSON per image**. Use the form in Step 2 to edit the fields for each Rukka.
-            5.  **Download:** Download your *entire edited batch* as a single `.json`, `.txt`, `.csv`, or `.pdf` file.
-            6.  **Save to DB:** Click 'Save All to MongoDB' to send all the extracted Rukkas to your database.
-            7.  **Reset:** Click "Reset Process" to start over.
+            5.  **Save to DB:** Click 'Save All to MongoDB' to send all the extracted Rukkas to your database.
+            6.  **Reset:** Click "Reset Process" to start over.
         """)
         st.write("---")
         st.write("To change themes, click the `...` in the top-right, go to `Settings`, and choose `Light` or `Dark`.")
@@ -3314,33 +3311,97 @@ else:
             # Changes made to widgets will directly modify this dict
             current_rukka = st.session_state.result_list[current_index]
 
-            # --- [NEW] Form-based Editor ---
+            # --- [NEW] Better Form-based Editor ---
             st.subheader("Rukka Header")
             
-            # Define all possible header fields
-            header_fields_col1 = ['REPORT_TITTLE', 'PO NO.', 'DATE', 'BROKER_NAME', 'MUKAM', 'AREA', 'MARKA']
-            header_fields_col2 = ['UNIT', 'BROKER_CODE', 'LORRY', 'REMARKS', 'PAYMENT TERM']
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                for field in header_fields_col1:
-                    # Use st.text_input, which writes changes back to the dict directly
-                    # Ensure .get() provides a default empty string if key is missing
-                    # Use a unique key to prevent widget state collisions
-                    current_rukka[field] = st.text_input(
-                        field, 
-                        value=current_rukka.get(field, ''),
-                        key=f"{field}_{current_index}"
-                    )
-            
-            with col2:
-                for field in header_fields_col2:
-                    current_rukka[field] = st.text_input(
-                        field, 
-                        value=current_rukka.get(field, ''),
-                        key=f"{field}_{current_index}" 
-                    )
+            # Row 1: Key Information
+            st.markdown("##### Key Information")
+            key_cols = st.columns(3)
+            with key_cols[0]:
+                current_rukka['REPORT_TITTLE'] = st.text_input(
+                    "REPORT TITTLE", 
+                    value=current_rukka.get('REPORT_TITTLE', ''),
+                    key=f"REPORT_TITTLE_{current_index}"
+                )
+            with key_cols[1]:
+                current_rukka['PO NO.'] = st.text_input(
+                    "PO NO.", 
+                    value=current_rukka.get('PO NO.', ''),
+                    key=f"PO NO._{current_index}"
+                )
+            with key_cols[2]:
+                current_rukka['DATE'] = st.text_input(
+                    "DATE", 
+                    value=current_rukka.get('DATE', ''),
+                    key=f"DATE_{current_index}"
+                )
+
+            # Row 2: Supplier & Unit
+            st.markdown("##### Supplier & Unit")
+            supplier_cols = st.columns(3)
+            with supplier_cols[0]:
+                current_rukka['BROKER_NAME'] = st.text_input(
+                    "BROKER NAME", 
+                    value=current_rukka.get('BROKER_NAME', ''),
+                    key=f"BROKER_NAME_{current_index}"
+                )
+            with supplier_cols[1]:
+                current_rukka['BROKER_CODE'] = st.text_input(
+                    "BROKER CODE", 
+                    value=current_rukka.get('BROKER_CODE', ''),
+                    key=f"BROKER_CODE_{current_index}"
+                )
+            with supplier_cols[2]:
+                 current_rukka['UNIT'] = st.text_input(
+                    "UNIT", 
+                    value=current_rukka.get('UNIT', ''),
+                    key=f"UNIT_{current_index}"
+                )
+
+            # Row 3: Location & Shipping
+            st.markdown("##### Location & Shipping")
+            shipping_cols = st.columns(4)
+            with shipping_cols[0]:
+                current_rukka['MUKAM'] = st.text_input(
+                    "MUKAM", 
+                    value=current_rukka.get('MUKAM', ''),
+                    key=f"MUKAM_{current_index}"
+                )
+            with shipping_cols[1]:
+                current_rukka['AREA'] = st.text_input(
+                    "AREA", 
+                    value=current_rukka.get('AREA', ''),
+                    key=f"AREA_{current_index}"
+                )
+            with shipping_cols[2]:
+                current_rukka['LORRY'] = st.text_input(
+                    "LORRY", 
+                    value=current_rukka.get('LORRY', ''),
+                    key=f"LORRY_{current_index}"
+                )
+            with shipping_cols[3]:
+                current_rukka['MARKA'] = st.text_input(
+                    "MARKA", 
+                    value=current_rukka.get('MARKA', ''),
+                    key=f"MARKA_{current_index}"
+                )
+
+            # Row 4: Terms & Remarks
+            st.markdown("##### Terms & Remarks")
+            remarks_cols = st.columns(2)
+            with remarks_cols[0]:
+                current_rukka['PAYMENT TERM'] = st.text_input(
+                    "PAYMENT TERM", 
+                    value=current_rukka.get('PAYMENT TERM', ''),
+                    key=f"PAYMENT TERM_{current_index}"
+                )
+            with remarks_cols[1]:
+                current_rukka['REMARKS'] = st.text_input(
+                    "REMARKS", 
+                    value=current_rukka.get('REMARKS', ''),
+                    key=f"REMARKS_{current_index}"
+                )
+            # --- [END] Better Form-based Editor ---
             
             st.divider()
             
