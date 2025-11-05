@@ -354,6 +354,7 @@ After that Old Crop
 -L is treated as Loose bales
 TD5 is treated as the basis, and the Rs./amount is different for every TD..
 
+
 Delivery/Shipment Date Area Wise:
 SOUTH BENGAL - 10 Days
 SEMI NORTHERN - 15 Days
@@ -2928,7 +2929,7 @@ If a single Rukka has PO: 123, BROKER: "ABC", and two items (TD5, TD6), your out
 **EXTRACTION & FORMATTING RULES:**
 1.  **Analyze Image:** Scan the entire document for all fields.
 2.  **Field Mapping (Header):** Extract these fields at the top level of the JSON object.
-    * `REPORT_TITTLE`: The main title (e.g., "P.O. REQUIRED SLIP", "MurdharRatan Exports Limited").
+    * `REPORT_TITTLE`: The main title ('RAW JUTE PURCHASE CLOSING SLIP' or else  'P.O. REQUIRED SLIP').
     * `UNIT`: The unit name (e.g., "STIL / UNIT : HASTINGS MILL", "India Jute Mill Serampore").
     * `PO NO.` : The 6-digit PO number (e.g., 2526400532, 848, 363). Must be a **number**.
     * `DATE`: The main document date. Standardize to **DD-MM-YYYY**.
@@ -3556,3 +3557,4 @@ else:
                             st.success(message)
                         else:
                             st.error(message)
+
