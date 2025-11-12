@@ -5,3 +5,5 @@ Pillow
 fpdf
 pymongo[srv]
 PyMuPDF
+passlib
+
